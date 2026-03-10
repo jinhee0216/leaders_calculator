@@ -23,7 +23,7 @@
   <div class="card">
     <input id="pdfFile" type="file" accept="application/pdf" />
     <button id="analyzeBtn">계산하기</button>
-    <p class="hint">예: <code>지급 2024-08-21 9,890</code> 는 포함, <code>선지급 ...</code> 은 제외</p>
+    <p class="hint">예: <code>지급 2024-08-21 9,890</code> 패턴을 우선 인식</p>
   </div>
 
   <p id="message"></p>
@@ -67,27 +67,27 @@
     function monthKeyFromDate(dateText) {
       const m = String(dateText).match(DATE_RE);
       if (!m) return null;
-      const y = m[1];
-      const mo = String(m[2]).padStart(2, '0');
-      return `${y}-${mo}`;
+      return `${m[1]}-${String(m[2]).padStart(2, '0')}`;
+    }
+
+    function normalizeForMatch(text) {
+      return String(text || '').replace(/\s+/g, ' ').trim();
     }
 
     function parsePayoutLine(line) {
-      const compact = line.replace(/\s+/g, ' ');
+      const compact = normalizeForMatch(line);
+      if (!compact) return null;
 
-      // 선지급 제외
-      if (compact.includes('선지급')) return null;
-
-      // 라벨형: 지급 일자 ... 금액 ...
-      const labeled = compact.match(/지급\s*(?:일자)?\s*[:：]?\s*(\d{4}[./-]\d{1,2}[./-]\d{1,2}).{0,20}?금액\s*[:：]?\s*(-?\d[\d,]*)/);
+      // 지급 일자 ... 금액 ... 형태
+      const labeled = compact.match(/지\s*급(?:\s*>\s*|\s+)(?:일\s*자\s*[:：]?\s*)?(\d{4}[./-]\d{1,2}[./-]\d{1,2})(?:\s*>\s*|\s+).*?(?:금\s*액\s*[:：]?\s*)?(-?\d[\d,]*)/);
       if (labeled) {
         const month = monthKeyFromDate(labeled[1]);
         const amount = parseAmount(labeled[2]);
         if (month && amount !== null) return { month, amount };
       }
 
-      // 일반형: "지급 2024-08-21 9,890"
-      const standalonePay = compact.match(/(?:^|\s|\[)지급(?:\s|\]|$)(.*)/);
+      // 지급 YYYY-MM-DD 9,890 형태
+      const standalonePay = compact.match(/(?:^|\s|\[|\()지\s*급(?:\s*>\s*|\s|\]|\)|$)(.*)/);
       if (!standalonePay) return null;
 
       const tail = standalonePay[1] || '';
@@ -101,49 +101,118 @@
 
       const amount = parseAmount(amt[0]);
       if (amount === null) return null;
-
       return { month, amount };
     }
 
-    async function extractPageLines(page) {
+    function parseFromTokenGroups(groups) {
+      const out = [];
+      for (const g of groups) {
+        const tokens = g.map(t => String(t.str || '').trim()).filter(Boolean);
+
+        // 토큰이 [지, 급] 처럼 분리되는 케이스까지 대응
+        for (let i = 0; i < tokens.length; i++) {
+          const cur = tokens[i].replace(/\s+/g, '');
+          const nxt = (tokens[i + 1] || '').replace(/\s+/g, '');
+          const isPayToken = cur === '지급' || (cur === '지' && nxt === '급');
+          if (!isPayToken) continue;
+
+          const start = isPayToken && cur === '지' && nxt === '급' ? i + 2 : i + 1;
+          let dateToken = null;
+          let amountToken = null;
+
+          for (let j = start; j < tokens.length; j++) {
+            if (!dateToken && DATE_RE.test(tokens[j])) {
+              dateToken = tokens[j];
+              continue;
+            }
+            if (dateToken && AMOUNT_RE.test(tokens[j])) {
+              amountToken = tokens[j];
+              break;
+            }
+          }
+
+          if (dateToken && amountToken) {
+            const month = monthKeyFromDate(dateToken);
+            const amount = parseAmount(amountToken);
+            if (month && amount !== null) out.push({ month, amount });
+          }
+        }
+      }
+      return out;
+    }
+
+    function parseFromJoinedText(pageText) {
+      const out = [];
+      const normalized = normalizeForMatch(pageText);
+      const re = /지\s*급(?:\s*>\s*|\s+)(\d{4}[./-]\d{1,2}[./-]\d{1,2})(?:\s*>\s*|\s+)(-?\d[\d,]*)/g;
+      for (const m of normalized.matchAll(re)) {
+        const month = monthKeyFromDate(m[1]);
+        const amount = parseAmount(m[2]);
+        if (month && amount !== null) out.push({ month, amount });
+      }
+      return out;
+    }
+
+    async function extractPageGroups(page) {
       const textContent = await page.getTextContent();
       const items = textContent.items
         .filter(i => i.str && i.str.trim())
-        .map(i => ({ str: i.str.trim(), y: Math.round(i.transform[5]) }))
-        .sort((a, b) => b.y - a.y);
+        .map(i => ({ str: i.str.trim(), x: i.transform[4], y: Math.round(i.transform[5]) }))
+        .sort((a, b) => (b.y - a.y) || (a.x - b.x));
 
-      const lines = [];
+      const groups = [];
       let currentY = null;
       let buf = [];
 
       for (const item of items) {
         if (currentY === null || Math.abs(item.y - currentY) <= 2) {
           currentY = currentY ?? item.y;
-          buf.push(item.str);
+          buf.push(item);
         } else {
-          lines.push(buf.join(' '));
+          groups.push(buf.sort((a, b) => a.x - b.x));
           currentY = item.y;
-          buf = [item.str];
+          buf = [item];
         }
       }
-      if (buf.length) lines.push(buf.join(' '));
-      return lines;
+      if (buf.length) groups.push(buf.sort((a, b) => a.x - b.x));
+      return groups;
     }
 
     async function analyzePdf(file) {
       const buffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-
       const rows = [];
+
       for (let p = 1; p <= pdf.numPages; p++) {
         const page = await pdf.getPage(p);
-        const lines = await extractPageLines(page);
-        for (const line of lines) {
+        const groups = await extractPageGroups(page);
+
+        // 1) 줄 기반 파싱
+        for (const g of groups) {
+          const line = g.map(x => x.str).join(' ');
           const parsed = parsePayoutLine(line);
           if (parsed) rows.push(parsed);
         }
+
+        // 2) 토큰 기반 파싱 (표 열이 잘게 쪼개진 경우 보강)
+        rows.push(...parseFromTokenGroups(groups));
+
+        // 3) 페이지 전체 텍스트 정규식 파싱 (최종 보강)
+        const pageText = groups.map(g => g.map(x => x.str).join(' ')).join('\n');
+        rows.push(...parseFromJoinedText(pageText));
       }
-      return rows;
+
+      // 중복 제거 (month+amount 조합 단순 제거)
+      const seen = new Set();
+      const uniq = [];
+      for (const r of rows) {
+        const key = `${r.month}|${r.amount}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniq.push(r);
+        }
+      }
+      return uniq;
     }
 
     function summarize(rows) {
@@ -187,7 +256,7 @@
 
         if (!latestRows.length) {
           message.className = 'error';
-          message.textContent = '지급 항목을 찾지 못했습니다. (선지급은 제외됨)';
+          message.textContent = '지급 항목을 찾지 못했습니다. PDF 텍스트 추출 형식을 확인해주세요.';
           return;
         }
 
