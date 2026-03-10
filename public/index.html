@@ -36,6 +36,16 @@
       box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
       text-align: center;
     }
+    .top-banner {
+      width: 100%;
+      height: 170px;
+      object-fit: cover;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #eef4ff;
+      display: block;
+      margin-bottom: 14px;
+    }
     .hero {
       padding: 20px;
     }
@@ -47,9 +57,9 @@
       margin-bottom: 8px;
     }
     .logo-slot {
-      width: 56px;
-      height: 56px;
-      border-radius: 12px;
+      width: 64px;
+      height: 64px;
+      border-radius: 14px;
       border: 1.5px dashed #b6c2d5;
       display: inline-flex;
       align-items: center;
@@ -58,7 +68,14 @@
       font-size: 12px;
       font-weight: 700;
       background: #f8fbff;
+      overflow: hidden;
       flex-shrink: 0;
+    }
+    .logo-slot img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
     .title {
       margin: 0;
@@ -103,9 +120,13 @@
 </head>
 <body>
   <div class="wrap">
+    <img class="top-banner" src="./assets/banner.jpg" alt="상단 배너 (public/assets/banner.jpg)" />
+
     <div class="card hero">
       <div class="brand-row">
-        <div class="logo-slot">LOGO</div>
+        <div class="logo-slot">
+          <img src="./assets/logo.png" alt="로고 (public/assets/logo.png)" onerror="this.style.display='none'; this.parentElement.textContent='LOGO';" />
+        </div>
         <h1 class="title">PDF 지급월 매출 합산기</h1>
       </div>
       <p class="desc">GitHub → Netlify용 정적 페이지입니다. 업로드한 PDF에서 <strong>지급 뒤의 날짜/금액</strong>만 합산합니다.</p>
