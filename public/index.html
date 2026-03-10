@@ -17,7 +17,7 @@
   </style>
 </head>
 <body>
-  <h1>PDF 지급월 매출 합산기</h1>
+  <h1>병원 의료급여 매출 계산기</h1>
   <p>GitHub → Netlify용 정적 페이지입니다. 업로드한 PDF에서 <strong>지급 뒤의 날짜/금액</strong>만 합산합니다.</p>
 
   <div class="card">
@@ -74,12 +74,18 @@
       return String(text || '').replace(/\s+/g, ' ').trim();
     }
 
+    function isPrepaySequence(text) {
+      return /(^|\s|\[|\()선\s*지\s*급(?:\s|\]|\)|$)/.test(text);
+    }
+
     function parsePayoutLine(line) {
       const compact = normalizeForMatch(line);
       if (!compact) return null;
 
       // 지급 일자 ... 금액 ... 형태
-      const labeled = compact.match(/지\s*급(?:\s*>\s*|\s+)(?:일\s*자\s*[:：]?\s*)?(\d{4}[./-]\d{1,2}[./-]\d{1,2})(?:\s*>\s*|\s+).*?(?:금\s*액\s*[:：]?\s*)?(-?\d[\d,]*)/);
+      if (isPrepaySequence(compact)) return null;
+
+      const labeled = compact.match(/(?:^|\s|\[|\()지\s*급(?:\s*>\s*|\s+)(?:일\s*자\s*[:：]?\s*)?(\d{4}[./-]\d{1,2}[./-]\d{1,2})(?:\s*>\s*|\s+).*?(?:금\s*액\s*[:：]?\s*)?(-?\d[\d,]*)/);
       if (labeled) {
         const month = monthKeyFromDate(labeled[1]);
         const amount = parseAmount(labeled[2]);
@@ -111,10 +117,13 @@
 
         // 토큰이 [지, 급] 처럼 분리되는 케이스까지 대응
         for (let i = 0; i < tokens.length; i++) {
+          const prev = (tokens[i - 1] || '').replace(/\s+/g, '');
           const cur = tokens[i].replace(/\s+/g, '');
           const nxt = (tokens[i + 1] || '').replace(/\s+/g, '');
           const isPayToken = cur === '지급' || (cur === '지' && nxt === '급');
           if (!isPayToken) continue;
+          if ((prev === '선' && cur === '지급') || cur === '선지급') continue;
+          if (cur === '지' && nxt === '급' && prev === '선') continue;
 
           const start = isPayToken && cur === '지' && nxt === '급' ? i + 2 : i + 1;
           let dateToken = null;
@@ -144,8 +153,10 @@
     function parseFromJoinedText(pageText) {
       const out = [];
       const normalized = normalizeForMatch(pageText);
-      const re = /지\s*급(?:\s*>\s*|\s+)(\d{4}[./-]\d{1,2}[./-]\d{1,2})(?:\s*>\s*|\s+)(-?\d[\d,]*)/g;
+      const re = /(?:^|\s|\[|\()지\s*급(?:\s*>\s*|\s+)(\d{4}[./-]\d{1,2}[./-]\d{1,2})(?:\s*>\s*|\s+)(-?\d[\d,]*)/g;
       for (const m of normalized.matchAll(re)) {
+        const around = normalized.slice(Math.max(0, m.index - 10), m.index + 8);
+        if (/선\s*$/.test(around)) continue;
         const month = monthKeyFromDate(m[1]);
         const amount = parseAmount(m[2]);
         if (month && amount !== null) out.push({ month, amount });
