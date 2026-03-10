@@ -5,63 +5,85 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>지급월 매출 합산기 (Netlify)</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Montserrat:wght@700;800;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&family=Montserrat:wght@700;800&display=swap');
+
     :root {
-      --bg: #e9edf7;
-      --card: #f3f6ff;
-      --line: #b8c8ff;
-      --text: #1a2f66;
-      --muted: #6175a8;
-      --primary: #3d63ff;
-      --primary-dark: #2f50dd;
+      --bg: #edf2ff;
+      --panel: #ffffffcc;
+      --panel-solid: #ffffff;
+      --line: #d7e2ff;
+      --text: #172b5e;
+      --muted: #6a7db3;
+      --primary: #3f67ff;
+      --primary-dark: #2f53df;
+      --chip-bg: #e9efff;
       --error: #d7263d;
-      --font-main: 'Noto Sans KR', Arial, sans-serif;
+      --radius: 18px;
+      --font-main: 'Noto Sans KR', sans-serif;
       --font-title: 'Montserrat', 'Noto Sans KR', sans-serif;
     }
 
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       font-family: var(--font-main);
-      background: linear-gradient(180deg, #f0f4ff 0%, var(--bg) 100%);
       color: var(--text);
+      background:
+        radial-gradient(1200px 360px at 90% -20%, #d9e4ff 0%, transparent 60%),
+        radial-gradient(900px 300px at -10% 0%, #e4ecff 0%, transparent 60%),
+        var(--bg);
     }
 
     .wrap {
-      max-width: 1040px;
-      margin: 28px auto 40px;
+      max-width: 980px;
+      margin: 30px auto 48px;
       padding: 0 16px;
     }
 
     .panel {
-      background: var(--card);
-      border: 1.5px solid var(--line);
-      border-radius: 18px;
-      padding: 24px;
+      background: var(--panel);
+      backdrop-filter: blur(4px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 30px rgba(47, 83, 223, 0.08);
+      padding: 22px;
       margin-bottom: 16px;
-      box-shadow: 0 8px 24px rgba(28, 64, 155, 0.08);
       text-align: center;
     }
 
+    .banner {
+      width: 100%;
+      height: 180px;
+      border-radius: var(--radius);
+      object-fit: cover;
+      border: 1px solid var(--line);
+      box-shadow: 0 10px 24px rgba(45, 78, 182, 0.10);
+      background: linear-gradient(135deg, #e8efff, #dfe8ff);
+      margin-bottom: 14px;
+    }
+
     .chip {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       padding: 7px 14px;
       border-radius: 999px;
-      border: 1px solid #d2dcff;
-      color: #4f65aa;
+      background: var(--chip-bg);
+      border: 1px solid #d3deff;
+      color: #4f66ab;
       font-size: 13px;
       font-weight: 700;
-      background: #edf2ff;
       margin-bottom: 10px;
     }
 
     .title {
       margin: 0;
-      font-size: 52px;
-      letter-spacing: -0.02em;
-      font-weight: 900;
-      color: #1a377f;
       font-family: var(--font-title);
+      font-size: clamp(24px, 4.6vw, 40px);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      color: #1b3a87;
     }
 
     .service {
@@ -69,21 +91,22 @@
       justify-content: center;
       align-items: center;
       gap: 12px;
+      flex-wrap: wrap;
       margin-top: 6px;
     }
 
     .logo-slot {
-      width: 56px;
-      height: 56px;
+      width: 60px;
+      height: 60px;
       border-radius: 14px;
-      background: #ffffff;
-      border: 1.5px dashed #9db0e9;
-      display: inline-flex;
-      justify-content: center;
-      align-items: center;
+      border: 1px dashed #9db2ef;
+      background: #fff;
       overflow: hidden;
-      color: #6d7ea8;
-      font-size: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #6c7faa;
+      font-size: 11px;
       font-weight: 800;
       flex-shrink: 0;
     }
@@ -92,96 +115,89 @@
 
     .service-title {
       margin: 0;
-      font-size: 50px;
+      font-family: var(--font-title);
+      font-size: clamp(24px, 4.2vw, 42px);
       line-height: 1.2;
       letter-spacing: -0.02em;
       color: #1a2f66;
-      font-weight: 900;
-      font-family: var(--font-title);
     }
 
     .desc {
       margin: 10px 0 18px;
       color: var(--muted);
-      font-size: 29px;
+      font-size: clamp(14px, 2vw, 20px);
       font-weight: 600;
+      line-height: 1.45;
     }
 
     .dropzone {
-      border: 1.5px dashed var(--line);
+      border: 1.5px dashed #bfd0ff;
+      background: #f7faff;
       border-radius: 14px;
-      background: #f9fbff;
       padding: 14px;
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
       gap: 10px;
       flex-wrap: wrap;
-      margin: 0 auto;
-      min-height: 64px;
+      min-height: 66px;
     }
 
     input[type='file'] {
-      width: 290px;
-      max-width: 100%;
-      border: 1px solid #adc0ff;
-      border-radius: 11px;
-      padding: 6px;
-      background: white;
+      width: min(360px, 100%);
+      border: 1px solid #b3c5ff;
+      border-radius: 12px;
+      background: #fff;
+      padding: 8px;
+      color: #253f84;
     }
 
     button {
       border: 0;
-      border-radius: 10px;
-      background: var(--primary);
-      color: white;
+      border-radius: 11px;
+      background: linear-gradient(180deg, #4e74ff, #365de6);
+      color: #fff;
       font-weight: 800;
-      padding: 10px 15px;
+      padding: 10px 16px;
       cursor: pointer;
-      box-shadow: 0 4px 10px rgba(44, 76, 182, 0.2);
+      box-shadow: 0 6px 16px rgba(53, 95, 230, 0.25);
+      transition: transform .08s ease, filter .2s ease;
     }
-
-    button:hover { background: var(--primary-dark); }
+    button:hover { filter: brightness(1.03); }
+    button:active { transform: translateY(1px); }
 
     .hint-box {
       margin-top: 10px;
-      border: 1px solid #d7e1ff;
+      background: #edf3ff;
+      border: 1px solid #d6e2ff;
       border-radius: 12px;
-      background: #ebf1ff;
-      color: #4662a9;
+      color: #4964a8;
       font-size: 13px;
-      padding: 12px;
       font-weight: 600;
+      padding: 11px 12px;
     }
 
-    .error { margin: 14px 0 0; color: var(--error); font-weight: 800; }
+    .error {
+      margin: 14px 0 0;
+      color: var(--error);
+      font-weight: 800;
+      font-size: 14px;
+    }
 
     #result table {
       width: 100%;
       border-collapse: collapse;
       margin-top: 10px;
-      overflow: hidden;
       border-radius: 12px;
+      overflow: hidden;
     }
-
     #result th, #result td {
       border: 1px solid #d3deff;
       padding: 12px;
       text-align: center;
       font-size: 14px;
     }
-
-    #result th { background: #e8efff; }
-
-    .banner {
-      width: 100%;
-      height: 170px;
-      object-fit: cover;
-      border-radius: 14px;
-      border: 1px solid var(--line);
-      margin-bottom: 14px;
-      background: #edf3ff;
-    }
+    #result th { background: #ecf2ff; }
   </style>
 </head>
 <body>
@@ -208,7 +224,7 @@
         <button id="analyzeBtn">계산하기</button>
       </div>
 
-      <div class="hint-box">파일을 업로드하면 지급월 합계 금액이 표시됩니다.(선지급은 제외)</div>
+      <div class="hint-box">파일을 업로드하면 지급월 합계 금액이 표시됩니다. (선지급은 제외)</div>
 
       <p id="message"></p>
 
