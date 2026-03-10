@@ -5,38 +5,132 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>지급월 매출 합산기 (Netlify)</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 16px; }
-    h1 { margin-bottom: 8px; }
-    .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-top: 16px; }
-    .error { color: #c62828; font-weight: 700; }
-    .hint { color: #555; font-size: 14px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: right; }
-    th:first-child, td:first-child { text-align: left; }
-    button { padding: 8px 12px; border: 0; border-radius: 6px; background: #1e88e5; color: white; cursor: pointer; }
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --line: #e3e8f1;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --error: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      color: var(--text);
+      font-family: 'Pretendard', 'Noto Sans KR', Arial, sans-serif;
+    }
+    .wrap {
+      max-width: 920px;
+      margin: 24px auto 48px;
+      padding: 0 16px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 18px;
+      margin-top: 14px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+      text-align: center;
+    }
+    .hero {
+      padding: 20px;
+    }
+    .brand-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      margin-bottom: 8px;
+    }
+    .logo-slot {
+      width: 56px;
+      height: 56px;
+      border-radius: 12px;
+      border: 1.5px dashed #b6c2d5;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #7183a1;
+      font-size: 12px;
+      font-weight: 700;
+      background: #f8fbff;
+      flex-shrink: 0;
+    }
+    .title {
+      margin: 0;
+      font-size: 34px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+    .desc {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    .upload-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+    }
+    input[type='file'] {
+      max-width: 420px;
+    }
+    button {
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--primary);
+      color: white;
+      cursor: pointer;
+      font-weight: 700;
+      transition: background 0.2s;
+    }
+    button:hover { background: var(--primary-dark); }
+    .hint { color: var(--muted); font-size: 14px; margin: 10px 0 0; }
+    .error { color: var(--error); font-weight: 700; margin: 14px 2px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; overflow: hidden; }
+    th, td { border: 1px solid var(--line); padding: 10px; text-align: center; }
+    th { background: #f2f6ff; }
+    code { background: #eef4ff; padding: 2px 6px; border-radius: 6px; }
   </style>
 </head>
 <body>
-  <h1>병원 의료급여 매출 계산기</h1>
-  <p>GitHub → Netlify용 정적 페이지입니다. 업로드한 PDF에서 <strong>지급 뒤의 날짜/금액</strong>만 합산합니다.</p>
+  <div class="wrap">
+    <div class="card hero">
+      <div class="brand-row">
+        <div class="logo-slot">LOGO</div>
+        <h1 class="title">PDF 지급월 매출 합산기</h1>
+      </div>
+      <p class="desc">GitHub → Netlify용 정적 페이지입니다. 업로드한 PDF에서 <strong>지급 뒤의 날짜/금액</strong>만 합산합니다.</p>
+    </div>
 
-  <div class="card">
-    <input id="pdfFile" type="file" accept="application/pdf" />
-    <button id="analyzeBtn">계산하기</button>
-    <p class="hint">예: <code>지급 2024-08-21 9,890</code> 패턴을 우선 인식</p>
-  </div>
+    <div class="card">
+      <div class="upload-row">
+        <input id="pdfFile" type="file" accept="application/pdf" />
+        <button id="analyzeBtn">계산하기</button>
+      </div>
+      <p class="hint">예: <code>지급 2024-11-19 45,340</code>, <code>지급 > 2024-11-19 > 45,340</code></p>
+    </div>
 
-  <p id="message"></p>
+    <p id="message"></p>
 
-  <div id="result" class="card" style="display:none;">
-    <p><strong id="countText"></strong></p>
-    <table>
-      <thead>
-      <tr><th>지급월</th><th>매출 합계</th></tr>
-      </thead>
-      <tbody id="resultBody"></tbody>
-    </table>
-    <button id="downloadBtn">CSV 다운로드</button>
+    <div id="result" class="card" style="display:none;">
+      <p><strong id="countText"></strong></p>
+      <table>
+        <thead>
+        <tr><th>지급월</th><th>매출 합계</th></tr>
+        </thead>
+        <tbody id="resultBody"></tbody>
+      </table>
+      <div style="margin-top: 12px;"><button id="downloadBtn">CSV 다운로드</button></div>
+    </div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.mjs" type="module"></script>
@@ -199,32 +293,32 @@
         const groups = await extractPageGroups(page);
 
         // 1) 줄 기반 파싱
+        const lineRows = [];
         for (const g of groups) {
           const line = g.map(x => x.str).join(' ');
           const parsed = parsePayoutLine(line);
-          if (parsed) rows.push(parsed);
+          if (parsed) lineRows.push(parsed);
+        }
+        if (lineRows.length) {
+          rows.push(...lineRows);
+          continue;
         }
 
-        // 2) 토큰 기반 파싱 (표 열이 잘게 쪼개진 경우 보강)
-        rows.push(...parseFromTokenGroups(groups));
+        // 2) 토큰 기반 파싱 (줄 기반 실패 시 보강)
+        const tokenRows = parseFromTokenGroups(groups);
+        if (tokenRows.length) {
+          rows.push(...tokenRows);
+          continue;
+        }
 
-        // 3) 페이지 전체 텍스트 정규식 파싱 (최종 보강)
+        // 3) 페이지 전체 텍스트 정규식 파싱 (최종 fallback)
         const pageText = groups.map(g => g.map(x => x.str).join(' ')).join('\n');
         rows.push(...parseFromJoinedText(pageText));
       }
 
-      // 중복 제거 (month+amount 조합 단순 제거)
-      const seen = new Set();
-      const uniq = [];
-      for (const r of rows) {
-        const key = `${r.month}|${r.amount}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          uniq.push(r);
-        }
-      }
-      return uniq;
+      return rows;
     }
+
 
     function summarize(rows) {
       const m = new Map();
