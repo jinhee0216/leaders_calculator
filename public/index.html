@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>지급월 매출 합산기 (Netlify)</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 16px; }
+    h1 { margin-bottom: 8px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-top: 16px; }
+    .error { color: #c62828; font-weight: 700; }
+    .hint { color: #555; font-size: 14px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 12px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: right; }
+    th:first-child, td:first-child { text-align: left; }
+    button { padding: 8px 12px; border: 0; border-radius: 6px; background: #1e88e5; color: white; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>PDF 지급월 매출 합산기</h1>
+  <p>GitHub → Netlify용 정적 페이지입니다. 업로드한 PDF에서 <strong>지급 뒤의 날짜/금액</strong>만 합산합니다.</p>
+
+  <div class="card">
+    <input id="pdfFile" type="file" accept="application/pdf" />
+    <button id="analyzeBtn">계산하기</button>
+    <p class="hint">예: <code>지급 2024-08-21 9,890</code> 는 포함, <code>선지급 ...</code> 은 제외</p>
+  </div>
+
+  <p id="message"></p>
+
+  <div id="result" class="card" style="display:none;">
+    <p><strong id="countText"></strong></p>
+    <table>
+      <thead>
+      <tr><th>지급월</th><th>매출 합계</th></tr>
+      </thead>
+      <tbody id="resultBody"></tbody>
+    </table>
+    <button id="downloadBtn">CSV 다운로드</button>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.mjs" type="module"></script>
+  <script type="module">
+    import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.mjs';
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.worker.min.mjs';
+
+    const fileInput = document.getElementById('pdfFile');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const message = document.getElementById('message');
+    const result = document.getElementById('result');
+    const resultBody = document.getElementById('resultBody');
+    const countText = document.getElementById('countText');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    let latestRows = [];
+
+    const DATE_RE = /(\d{4})[./-](\d{1,2})[./-](\d{1,2})/;
+    const AMOUNT_RE = /-?\d[\d,]*/;
+
+    function parseAmount(text) {
+      const normalized = String(text).replace(/[^0-9-]/g, '');
+      if (!normalized || normalized === '-') return null;
+      return Number.parseInt(normalized, 10);
+    }
+
+    function monthKeyFromDate(dateText) {
+      const m = String(dateText).match(DATE_RE);
+      if (!m) return null;
+      const y = m[1];
+      const mo = String(m[2]).padStart(2, '0');
+      return `${y}-${mo}`;
+    }
+
+    function parsePayoutLine(line) {
+      const compact = line.replace(/\s+/g, ' ');
+
+      // 선지급 제외
+      if (compact.includes('선지급')) return null;
+
+      // 라벨형: 지급 일자 ... 금액 ...
+      const labeled = compact.match(/지급\s*(?:일자)?\s*[:：]?\s*(\d{4}[./-]\d{1,2}[./-]\d{1,2}).{0,20}?금액\s*[:：]?\s*(-?\d[\d,]*)/);
+      if (labeled) {
+        const month = monthKeyFromDate(labeled[1]);
+        const amount = parseAmount(labeled[2]);
+        if (month && amount !== null) return { month, amount };
+      }
+
+      // 일반형: "지급 2024-08-21 9,890"
+      const standalonePay = compact.match(/(?:^|\s|\[)지급(?:\s|\]|$)(.*)/);
+      if (!standalonePay) return null;
+
+      const tail = standalonePay[1] || '';
+      const dateMatch = tail.match(DATE_RE);
+      if (!dateMatch) return null;
+
+      const month = `${dateMatch[1]}-${String(dateMatch[2]).padStart(2, '0')}`;
+      const rest = tail.slice(tail.indexOf(dateMatch[0]) + dateMatch[0].length);
+      const amt = rest.match(AMOUNT_RE);
+      if (!amt) return null;
+
+      const amount = parseAmount(amt[0]);
+      if (amount === null) return null;
+
+      return { month, amount };
+    }
+
+    async function extractPageLines(page) {
+      const textContent = await page.getTextContent();
+      const items = textContent.items
+        .filter(i => i.str && i.str.trim())
+        .map(i => ({ str: i.str.trim(), y: Math.round(i.transform[5]) }))
+        .sort((a, b) => b.y - a.y);
+
+      const lines = [];
+      let currentY = null;
+      let buf = [];
+
+      for (const item of items) {
+        if (currentY === null || Math.abs(item.y - currentY) <= 2) {
+          currentY = currentY ?? item.y;
+          buf.push(item.str);
+        } else {
+          lines.push(buf.join(' '));
+          currentY = item.y;
+          buf = [item.str];
+        }
+      }
+      if (buf.length) lines.push(buf.join(' '));
+      return lines;
+    }
+
+    async function analyzePdf(file) {
+      const buffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+
+      const rows = [];
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const lines = await extractPageLines(page);
+        for (const line of lines) {
+          const parsed = parsePayoutLine(line);
+          if (parsed) rows.push(parsed);
+        }
+      }
+      return rows;
+    }
+
+    function summarize(rows) {
+      const m = new Map();
+      for (const r of rows) m.set(r.month, (m.get(r.month) || 0) + r.amount);
+      return [...m.entries()].sort((a,b) => a[0].localeCompare(b[0])).map(([month, total]) => ({ month, total }));
+    }
+
+    function render(summary, count) {
+      resultBody.innerHTML = '';
+      for (const row of summary) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${row.month}</td><td>${row.total.toLocaleString('ko-KR')}</td>`;
+        resultBody.appendChild(tr);
+      }
+      countText.textContent = `총 ${count}건의 지급 항목을 분석했습니다.`;
+      result.style.display = summary.length ? 'block' : 'none';
+    }
+
+    function toCsv(summary) {
+      const lines = ['지급월,매출 합계'];
+      summary.forEach(r => lines.push(`${r.month},${r.total}`));
+      return lines.join('\n');
+    }
+
+    analyzeBtn.addEventListener('click', async () => {
+      const file = fileInput.files?.[0];
+      message.className = '';
+      message.textContent = '';
+      result.style.display = 'none';
+
+      if (!file) {
+        message.className = 'error';
+        message.textContent = 'PDF 파일을 선택해주세요.';
+        return;
+      }
+
+      try {
+        const rows = await analyzePdf(file);
+        latestRows = summarize(rows);
+
+        if (!latestRows.length) {
+          message.className = 'error';
+          message.textContent = '지급 항목을 찾지 못했습니다. (선지급은 제외됨)';
+          return;
+        }
+
+        render(latestRows, rows.length);
+      } catch (e) {
+        message.className = 'error';
+        message.textContent = `분석 중 오류: ${e?.message || e}`;
+      }
+    });
+
+    downloadBtn.addEventListener('click', () => {
+      if (!latestRows.length) return;
+      const blob = new Blob([toCsv(latestRows)], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'monthly_summary.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+  </script>
+</body>
+</html>
