@@ -5,153 +5,224 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>지급월 매출 합산기 (Netlify)</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=Montserrat:wght@700;800;900&display=swap');
     :root {
-      --bg: #f5f7fb;
-      --card: #ffffff;
-      --line: #e3e8f1;
-      --text: #1f2937;
-      --muted: #6b7280;
-      --primary: #2563eb;
-      --primary-dark: #1d4ed8;
-      --error: #dc2626;
+      --bg: #e9edf7;
+      --card: #f3f6ff;
+      --line: #b8c8ff;
+      --text: #1a2f66;
+      --muted: #6175a8;
+      --primary: #3d63ff;
+      --primary-dark: #2f50dd;
+      --error: #d7263d;
+      --font-main: 'Noto Sans KR', Arial, sans-serif;
+      --font-title: 'Montserrat', 'Noto Sans KR', sans-serif;
     }
+
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      background: linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      font-family: var(--font-main);
+      background: linear-gradient(180deg, #f0f4ff 0%, var(--bg) 100%);
       color: var(--text);
-      font-family: 'Pretendard', 'Noto Sans KR', Arial, sans-serif;
     }
+
     .wrap {
-      max-width: 920px;
-      margin: 24px auto 48px;
+      max-width: 1040px;
+      margin: 28px auto 40px;
       padding: 0 16px;
     }
-    .card {
+
+    .panel {
       background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 18px;
-      margin-top: 14px;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+      border: 1.5px solid var(--line);
+      border-radius: 18px;
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 24px rgba(28, 64, 155, 0.08);
       text-align: center;
     }
-    .top-banner {
+
+    .chip {
+      display: inline-block;
+      padding: 7px 14px;
+      border-radius: 999px;
+      border: 1px solid #d2dcff;
+      color: #4f65aa;
+      font-size: 13px;
+      font-weight: 700;
+      background: #edf2ff;
+      margin-bottom: 10px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 52px;
+      letter-spacing: -0.02em;
+      font-weight: 900;
+      color: #1a377f;
+      font-family: var(--font-title);
+    }
+
+    .service {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      margin-top: 6px;
+    }
+
+    .logo-slot {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      background: #ffffff;
+      border: 1.5px dashed #9db0e9;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      color: #6d7ea8;
+      font-size: 12px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+
+    .logo-slot img { width: 100%; height: 100%; object-fit: cover; }
+
+    .service-title {
+      margin: 0;
+      font-size: 50px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      color: #1a2f66;
+      font-weight: 900;
+      font-family: var(--font-title);
+    }
+
+    .desc {
+      margin: 10px 0 18px;
+      color: var(--muted);
+      font-size: 29px;
+      font-weight: 600;
+    }
+
+    .dropzone {
+      border: 1.5px dashed var(--line);
+      border-radius: 14px;
+      background: #f9fbff;
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 0 auto;
+      min-height: 64px;
+    }
+
+    input[type='file'] {
+      width: 290px;
+      max-width: 100%;
+      border: 1px solid #adc0ff;
+      border-radius: 11px;
+      padding: 6px;
+      background: white;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      background: var(--primary);
+      color: white;
+      font-weight: 800;
+      padding: 10px 15px;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(44, 76, 182, 0.2);
+    }
+
+    button:hover { background: var(--primary-dark); }
+
+    .hint-box {
+      margin-top: 10px;
+      border: 1px solid #d7e1ff;
+      border-radius: 12px;
+      background: #ebf1ff;
+      color: #4662a9;
+      font-size: 13px;
+      padding: 12px;
+      font-weight: 600;
+    }
+
+    .error { margin: 14px 0 0; color: var(--error); font-weight: 800; }
+
+    #result table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      overflow: hidden;
+      border-radius: 12px;
+    }
+
+    #result th, #result td {
+      border: 1px solid #d3deff;
+      padding: 12px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    #result th { background: #e8efff; }
+
+    .banner {
       width: 100%;
       height: 170px;
       object-fit: cover;
       border-radius: 14px;
       border: 1px solid var(--line);
-      background: #eef4ff;
-      display: block;
       margin-bottom: 14px;
+      background: #edf3ff;
     }
-    .hero {
-      padding: 20px;
-    }
-    .brand-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 14px;
-      margin-bottom: 8px;
-    }
-    .logo-slot {
-      width: 64px;
-      height: 64px;
-      border-radius: 14px;
-      border: 1.5px dashed #b6c2d5;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: #7183a1;
-      font-size: 12px;
-      font-weight: 700;
-      background: #f8fbff;
-      overflow: hidden;
-      flex-shrink: 0;
-    }
-    .logo-slot img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-    .title {
-      margin: 0;
-      font-size: 34px;
-      line-height: 1.2;
-      letter-spacing: -0.02em;
-    }
-    .desc {
-      margin: 0;
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.6;
-    }
-    .upload-row {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
-    }
-    input[type='file'] {
-      max-width: 420px;
-    }
-    button {
-      padding: 10px 14px;
-      border: 0;
-      border-radius: 10px;
-      background: var(--primary);
-      color: white;
-      cursor: pointer;
-      font-weight: 700;
-      transition: background 0.2s;
-    }
-    button:hover { background: var(--primary-dark); }
-    .hint { color: var(--muted); font-size: 14px; margin: 10px 0 0; }
-    .error { color: var(--error); font-weight: 700; margin: 14px 2px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 10px; overflow: hidden; }
-    th, td { border: 1px solid var(--line); padding: 10px; text-align: center; }
-    th { background: #f2f6ff; }
-    code { background: #eef4ff; padding: 2px 6px; border-radius: 6px; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <img class="top-banner" src="./assets/banner.jpg" alt="상단 배너 (public/assets/banner.jpg)" />
+    <img class="banner" src="./assets/banner.jpg" alt="상단 배너" />
 
-    <div class="card hero">
-      <div class="brand-row">
+    <section class="panel">
+      <div class="chip">리더스론 지니위키</div>
+      <h1 class="title">의료기관 매출계산기</h1>
+    </section>
+
+    <section class="panel">
+      <div class="chip">월별 자동 집계</div>
+      <div class="service">
         <div class="logo-slot">
-          <img src="./assets/logo.png" alt="로고 (public/assets/logo.png)" onerror="this.style.display='none'; this.parentElement.textContent='LOGO';" />
+          <img src="./assets/logo.png" alt="로고" onerror="this.style.display='none'; this.parentElement.textContent='LOGO';" />
         </div>
-        <h1 class="title">의료기관 공단급여 매출 계산기</h1>
+        <h2 class="service-title">의료급여 지급내역서 계산기</h2>
       </div>
-      <p class="desc"> www.medicare.nhis.or.kr [요양기관정보마당]에서 받 <strong>의료급여 지급내역서</strong>만 합산합니다.</p>
-    </div>
+      <p class="desc">지급 2024-11-19 45,340 형식의 항목을 월별로 합산합니다.</p>
 
-    <div class="card">
-      <div class="upload-row">
+      <div class="dropzone">
         <input id="pdfFile" type="file" accept="application/pdf" />
         <button id="analyzeBtn">계산하기</button>
       </div>
-      <p class="hint">예: <code>지급 2024-11-19 45,340</code>, <code>지급 > 2024-11-19 > 45,340</code></p>
-    </div>
 
-    <p id="message"></p>
+      <div class="hint-box">파일을 업로드하면 지급월 합계 금액이 표시됩니다.(선지급은 제외)</div>
 
-    <div id="result" class="card" style="display:none;">
-      <p><strong id="countText"></strong></p>
-      <table>
-        <thead>
-        <tr><th>지급월</th><th>매출 합계</th></tr>
-        </thead>
-        <tbody id="resultBody"></tbody>
-      </table>
-      <div style="margin-top: 12px;"><button id="downloadBtn">CSV 다운로드</button></div>
-    </div>
+      <p id="message"></p>
+
+      <div id="result" style="display:none; margin-top: 10px;">
+        <p><strong id="countText"></strong></p>
+        <table>
+          <thead>
+          <tr><th>지급월</th><th>매출 합계</th></tr>
+          </thead>
+          <tbody id="resultBody"></tbody>
+        </table>
+        <div style="margin-top: 12px;"><button id="downloadBtn">CSV 다운로드</button></div>
+      </div>
+    </section>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.5.136/pdf.min.mjs" type="module"></script>
@@ -196,8 +267,6 @@
     function parsePayoutLine(line) {
       const compact = normalizeForMatch(line);
       if (!compact) return null;
-
-      // 지급 일자 ... 금액 ... 형태
       if (isPrepaySequence(compact)) return null;
 
       const labeled = compact.match(/(?:^|\s|\[|\()지\s*급(?:\s*>\s*|\s+)(?:일\s*자\s*[:：]?\s*)?(\d{4}[./-]\d{1,2}[./-]\d{1,2})(?:\s*>\s*|\s+).*?(?:금\s*액\s*[:：]?\s*)?(-?\d[\d,]*)/);
@@ -207,7 +276,6 @@
         if (month && amount !== null) return { month, amount };
       }
 
-      // 지급 YYYY-MM-DD 9,890 형태
       const standalonePay = compact.match(/(?:^|\s|\[|\()지\s*급(?:\s*>\s*|\s|\]|\)|$)(.*)/);
       if (!standalonePay) return null;
 
@@ -230,7 +298,6 @@
       for (const g of groups) {
         const tokens = g.map(t => String(t.str || '').trim()).filter(Boolean);
 
-        // 토큰이 [지, 급] 처럼 분리되는 케이스까지 대응
         for (let i = 0; i < tokens.length; i++) {
           const prev = (tokens[i - 1] || '').replace(/\s+/g, '');
           const cur = tokens[i].replace(/\s+/g, '');
@@ -313,7 +380,6 @@
         const page = await pdf.getPage(p);
         const groups = await extractPageGroups(page);
 
-        // 1) 줄 기반 파싱
         const lineRows = [];
         for (const g of groups) {
           const line = g.map(x => x.str).join(' ');
@@ -325,21 +391,18 @@
           continue;
         }
 
-        // 2) 토큰 기반 파싱 (줄 기반 실패 시 보강)
         const tokenRows = parseFromTokenGroups(groups);
         if (tokenRows.length) {
           rows.push(...tokenRows);
           continue;
         }
 
-        // 3) 페이지 전체 텍스트 정규식 파싱 (최종 fallback)
         const pageText = groups.map(g => g.map(x => x.str).join(' ')).join('\n');
         rows.push(...parseFromJoinedText(pageText));
       }
 
       return rows;
     }
-
 
     function summarize(rows) {
       const m = new Map();
